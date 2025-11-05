@@ -52,37 +52,62 @@ const SingleChatMessageBar = () => {
     }
   }, [selectedChatData]);
 
-  const handleSendMessage = async () => {
-    if (!message.trim()) return;
+ const handleSendMessage = async () => {
+  if (!message.trim()) return;
 
-    // console.log(message);
-    if (selectedChatType === "contact") {
-      socket.emit("sendMessage", {
-        sender: userInfo.id,
-        content: message,
-        recipient: selectedChatData._id,
-        messageType: "text",
-        fileUrl: undefined,
-      });
-    } else if (selectedChatType === "group") {
-      socket.emit("sendGroupMessage", {
-        sender: userInfo.id,
-        content: message,
-        messageType: "text",
-        fileUrl: undefined,
-        groupId: selectedChatData._id,
-      });
+  if (!selectedChatData || !selectedChatData._id) {
+    console.error("No chat selected");
+    return;
+  }
+
+  if (selectedChatType === "contact") {
+    if (!socket) {
+      console.error("Socket not connected yet");
+      return;
     }
-    setActiveChatId(selectedChatData._id);
-    setPlaceholderMessage(message);
-    setMessage("");
-    setRefreshChatList(true);
-  };
+    console.log("Sending DM emit", {
+      sender: userInfo.id,
+      recipient: selectedChatData._id,
+      socketId: socket.id,
+      connected: !!socket.connected,
+    });
+    socket.emit("sendMessage", {
+      sender: userInfo.id,
+      content: message,
+      recipient: selectedChatData._id,
+      messageType: "text",
+    });
+  } else if (selectedChatType === "group") {
+    if (!socket) {
+      console.error("Socket not connected yet");
+      return;
+    }
+    console.log("Sending group emit", {
+      sender: userInfo.id,
+      groupId: selectedChatData._id,
+      socketId: socket.id,
+      connected: !!socket.connected,
+    });
+    socket.emit("sendGroupMessage", {
+      sender: userInfo.id,
+      content: message,
+      groupId: selectedChatData._id,
+      messageType: "text",
+    });
+  }
+
+  setActiveChatId(selectedChatData._id);
+  setPlaceholderMessage(message);
+  setMessage("");
+  setRefreshChatList(true);
+};
+
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSendMessage();
-    }
+  if (e.key === "Enter" && !e.shiftKey) {
+  e.preventDefault();
+  handleSendMessage();
+}
   };
 
   const fileInputRef = useRef();
@@ -112,6 +137,17 @@ const SingleChatMessageBar = () => {
 
         if (fileUrl) {
           if (selectedChatType === "contact") {
+            if (!socket) {
+              console.error("Socket not connected yet");
+              return;
+            }
+              console.log("Sending DM file emit", {
+                sender: userInfo.id,
+                recipient: selectedChatData._id,
+                fileUrl,
+                socketId: socket.id,
+                connected: !!socket.connected,
+              });
             socket.emit("sendMessage", {
               sender: userInfo.id,
               content: undefined,

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useAppStore } from "../store";
 import { HOST } from "../utils/constants";
@@ -10,16 +10,16 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const socket = useRef();
+  const [socket, setSocket] = useState(null);
   const { userInfo } = useAppStore();
 
   useEffect(() => {
     if (userInfo) {
-      socket.current = io(HOST, {
+      const s = io(HOST, {
         withCredentials: true,
         query: { userId: userInfo.id },
       });
-      socket.current.on("connect", () => {
+      s.on("connect", () => {
         console.log("Connected to socket server");
       });
 
@@ -87,19 +87,22 @@ export const SocketProvider = ({ children }) => {
         }
       };
 
-      socket.current.on("receiveMessage", handleReceiveMessage);
-      socket.current.on("receiveGroupCreation", handleReceiveGroupCreation);
-      socket.current.on("receiveGroupMessage", handleReceiveGroupMessage);
-      socket.current.on("receiveFriendRequest", handleReceiveFriendRequest);
+      s.on("receiveMessage", handleReceiveMessage);
+      s.on("receiveGroupCreation", handleReceiveGroupCreation);
+      s.on("receiveGroupMessage", handleReceiveGroupMessage);
+      s.on("receiveFriendRequest", handleReceiveFriendRequest);
+
+      // store socket in state so Provider updates consumers
+      setSocket(s);
 
       return () => {
-        socket.current.disconnect();
+        s.disconnect();
       };
     }
   }, [userInfo]);
 
   return (
-    <SocketContext.Provider value={socket.current}>
+    <SocketContext.Provider value={socket}>
       {children}
     </SocketContext.Provider>
   );
